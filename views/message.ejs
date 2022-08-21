@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Page</title>
+    <style>
+      .flexcontainer{
+         display: flex;
+         flex-direction:column;
+         align-items: stretch;
+      }
+      .flexcontainer2{
+        display: flex;
+         flex-direction:row;
+         align-items: stretch;
+      }
+      .w50{
+       width:50%;}
+     
+
+
+      @media screen and (max-width: 600px) {
+     .w50{
+       width:75%;
+     }
+     }
+
+     .scroll {
+      background-color: #5d74c0;
+      height: 80vh;
+      overflow-x: auto;
+      overflow-y: auto;
+      text-align: center;
+      }
+
+      #bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+
+      }
+      .inlineblock{
+        display: inline-block;
+      }
+      
+    </style>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">SocialMedia</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+        <div class="navbar-nav">
+          <a class="nav-link" href="/">Home</a>
+          <a class="nav-link" href="/createpost">Create Post</a>
+          <a class="nav-link" href="/message">Message</a>
+          <a class="nav-link" href="/profile/<%=curuserid%>">Profile</a>
+          <a class="nav-link" href="/request">Request</a>
+          <a class="nav-link" href="/suggestion">Suggestion</a>
+          <a class="nav-link" href="/logout">Logout</a>
+        </div>
+        
+      </div>
+    </div>
+  </nav>
+      <div class="flexcontainer2 ">
+      <div class="flexcontainer w-25 scroll">
+      <%for(let friend of allfriends){%>
+      <div class="col-sm-6 mx-auto mt-1 mb-1">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title "><a href="/profile/<%=friend._id%>"><%=friend.username%></a></h5>
+            
+            
+          <button class="btn btn-success allbtns " id="<%=friend._id%>">Chat</button>
+          </div>
+        </div>
+      </div>
+      <%}%>
+    </div>
+    <div class="flexcontainer card w50 scroll" id="chats">
+       
+    </div>
+  </div>
+    <div id="formspace" class="mt-1"></div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      
+      let selectedUser="",selectedUsersocketid="",currUser="";
+      let chatdata=new Map();
+
+      function getchatdata(tmp1,tmp2) {
+    return new Promise((resolve, reject) => {
+      if(chatdata.get(tmp1+','+tmp2)){
+                     resolve('works');
+                    }
+              else{ let xhttp=new XMLHttpRequest();
+                     xhttp.onload=function(){
+                     if(this.status==200){
+                      chatdata.set(tmp1+','+tmp2,JSON.parse(this.responseText));
+                      
+                      resolve('works');
+                      }
+                      }
+                     xhttp.open('POST','/getchatdata',true);
+                     xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+                     xhttp.send(`key=${tmp1+','+tmp2}`);}
+     });
+}
+
+      let xhttp=new XMLHttpRequest();
+          xhttp.onload=function(){
+            if(this.status==200){
+              currUser=this.responseText; //console.log('curruser->',currUser);
+  
+            }
+          }
+          xhttp.open('GET','/getcurruser',true);
+          xhttp.send();
+
+    function onMessage(content) {
+    if (selectedUser) {
+    socket.emit("private message", {
+      content,
+      to: selectedUsersocketid,
+      to_userid: selectedUser
+    });
+    }
+    }
+    var socket = io();
+    
+    //let username='Sagar'; //get the username/userid from server
+
+   //socket.auth={username};
+
+    socket.on("connect_error", (err) => {
+    if (err.message === "invalid username") {
+    console.log('No username entered');
+    }
+    });
+    
+  
+  socket.on("private message", ({ content, from }) => {
+        let fromuserid="";
+        let xhttp=new XMLHttpRequest();
+                    xhttp.onload=function(){
+                   if(this.status==200){
+                   fromuserid=this.responseText;
+                   //console.log('Userid',currUser,fromuserid);
+                   let i=1; let tmp1="",tmp2="";  //tmp1 for currUser and tmp2 for fromuserid
+                   while(currUser[i]!='"'){tmp1+=currUser[i]; i++;}
+                   i=1; while(fromuserid[i]!='"'){tmp2+=fromuserid[i]; i++;}
+                   if(chatdata.get(tmp1+','+tmp2)){
+                     let chats=chatdata.get(tmp1+','+tmp2);
+                     chats.push({
+                       userid:tmp2, msg:content
+                     })
+                     chatdata.set(tmp1+','+tmp2,chats);
+                     //console.log('chatdatanow',chatdata.get(tmp1+','+tmp2));
+                   }
+                   else{
+                    let xhttp=new XMLHttpRequest();
+                    xhttp.onload=function(){
+                    if(this.status==200){
+                     chatdata.set(tmp1+','+tmp2,JSON.parse(this.responseText));
+                    // console.log('chatdatasent',this.responseText);
+                     }
+                     }
+                    xhttp.open('POST','/getchatdata',true);
+                    xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+                    xhttp.send(`key=${tmp1+','+tmp2}`);
+                    }
+                      }
+                     }
+          xhttp.open('POST','/getuserid',true);
+          xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+          xhttp.send(`socketid=${from}`);
+
+        
+        console.log('selectedUsersocketid',selectedUsersocketid,'from',from);
+        if(selectedUsersocketid===from){
+          let chats=document.getElementById('chats');
+          let msg=document.createElement('h6');
+          msg.innerHTML='Friend:-  '+content; chats.appendChild(msg);
+          chats.scrollTop = chats.scrollHeight;
+          msg.setAttribute('class','mt-0 mb-0');
+          msg.setAttribute('style','background-color:#aaaaaa');
+        }
+      //  console.log('Inside private message in client side');
+        //console.log(content,from);
+  
+});
+
+socket.on("connect", () => {
+  let xhttp=new XMLHttpRequest();
+          xhttp.onload=function(){
+            if(this.status==200){
+              
+              console.log(this.responseText);
+            }
+          }
+          xhttp.open('POST','/userconnected',true);
+          xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+          xhttp.send(`socketid=${socket.id}`);
+
+  
+});
+
+socket.on("disconnect", () => {
+  let xhttp=new XMLHttpRequest();
+          xhttp.onload=function(){
+            if(this.status==200){
+              
+              console.log(this.responseText);
+            }
+          }
+          xhttp.open('GET','/userdisconnected',true);
+          
+          xhttp.send();
+
+
+ 
+});
+  
+      let allbtns=document.getElementsByClassName('allbtns');
+      let chats=document.getElementById('chats');
+      for(let btn of allbtns){
+        let id=btn.id; 
+        btn.addEventListener('click',async()=>{
+          chats.innerHTML="";
+          selectedUser=id; 
+          let tmp1="",tmp2=id,i=1;  //tmp1 for curruser and tmp2 for receiver
+          while(currUser[i]!='"'){tmp1+=currUser[i]; i++;}
+          
+            
+         await getchatdata(tmp1,tmp2);
+         // console.log('after')
+         await new Promise((resolve,reject)=>{
+          let xhttp=new XMLHttpRequest();
+          xhttp.onload=function(){
+                   if(this.status==200){
+                   selectedUsersocketid=this.responseText;
+                   console.log(this.responseText);
+                   resolve('done');
+                      }
+                     }
+          xhttp.open('POST','/getsocketid',true);
+          xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+          xhttp.send(`userid=${id}`);
+         })
+         
+          //write here code for data on screen
+          for(let chat of chatdata.get(tmp1+','+tmp2)){
+            if(chat.userid===tmp1){
+              let msg=document.createElement('h6');
+                    msg.innerHTML='You:-  '+chat.msg; chats.appendChild(msg);
+                    msg.setAttribute('class','mt-0 mb-0');
+                    msg.setAttribute('style','background-color:#cccccc');
+            }
+            else{
+              let msg=document.createElement('h6');
+          msg.innerHTML='Friend:-  '+chat.msg; chats.appendChild(msg);
+          msg.setAttribute('class','mt-0 mb-0');
+          msg.setAttribute('style','background-color:#aaaaaa');
+            }
+          }
+          chats.scrollTop = chats.scrollHeight;
+
+          
+           let form=document.createElement('FORM');
+           let input=document.createElement('INPUT'); input.setAttribute("type", "text");
+           input.setAttribute("class","w-75"); input.setAttribute("placeholder","Type your message here");
+           let submit=document.createElement('BUTTON'); submit.innerHTML="SEND";
+           form.appendChild(input); form.appendChild(submit);
+           //let body=document.getElementsByTagName("BODY")[0];
+           // body.appendChild(form);
+           let formspace=document.getElementById('formspace');
+           formspace.innerHTML="";
+           formspace.appendChild(form);
+           form.setAttribute("required", "true");  //not working, why??
+           //form.setAttribute('id','bottom');
+           form.setAttribute('class','w-100');
+           form.addEventListener('submit',(e)=>{
+                    e.preventDefault(); console.log('form submitting');
+                    if(input.value){
+                  //  console.log(input.value);
+                    let msg=document.createElement('h6');
+                    msg.innerHTML='You:-  '+input.value; chats.appendChild(msg);
+                    chats.scrollTop = chats.scrollHeight;
+                    msg.setAttribute('class','mt-0 mb-0');
+                    msg.setAttribute('style','background-color:#cccccc');
+                    let xhttp=new XMLHttpRequest();
+                    xhttp.onload=function(){
+                   if(this.status==200){
+                   selectedUsersocketid=this.responseText;
+                   console.log(this.responseText);
+                  onMessage(input.value);
+                      
+                      chatdata.get(tmp1+','+tmp2).push({
+                        userid:tmp1, msg:input.value
+                      })
+                      input.value=""
+                      }
+                     }
+          xhttp.open('POST','/getsocketid',true);
+          xhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+          xhttp.send(`userid=${id}`);
+                    }
+                    
+           })
+        })
+      }
+    
+    
+    </script>
+</body>
+</html>
